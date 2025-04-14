@@ -13,6 +13,9 @@ struct ContentView: View {
     @State private var currentRow = 0
     @State private var letterStatuses: [[LetterStatus]] = Array(repeating: Array(repeating: .absent, count: 5), count: 6)
     @Binding var word : String
+    
+    // Focus tracking
+    @FocusState private var focusedField: FieldFocus?
 
     
     
@@ -29,6 +32,13 @@ struct ContentView: View {
                                     if let char = newValue.last?.uppercased(),
                                        char.range(of: "[A-Z]", options: .regularExpression) != nil {
                                         guesses[row][col] = String(char)
+                                        
+                                        if col < 4 {
+                                            focusedField = .field(row: row, col: col + 1)
+                                        } else {
+                                            focusedField = nil
+                                        }
+                                        
                                     } else {
                                         guesses[row][col] = ""
                                     }
@@ -43,7 +53,16 @@ struct ContentView: View {
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.characters)
                         .disabled(!isEditable)
+                        .focused($focusedField, equals: .field(row: row, col: col))
                         .background(letterStatuses[row][col].toColor())
+                        .onTapGesture {
+                            if isEditable {
+                                // Delay to ensure SwiftUI sets the focus reliably
+                                DispatchQueue.main.async {
+                                    focusedField = .field(row: row, col: col)
+                                }
+                            }
+                        }
 
                         
                     }
@@ -60,6 +79,12 @@ struct ContentView: View {
         }
         .disabled(!isRowFilled(guesses[currentRow]))
         .padding()
+        .onAppear {
+            focusedField = .field(row: 0, col: 0)
+        }
+        .onChange(of: currentRow) { newRow in
+            focusedField = .field(row: newRow, col: 0)
+        }
     }
     
     func isRowFilled(_ row: [String]) -> Bool {
@@ -127,6 +152,11 @@ struct ContentView: View {
             }
         }
         
+    }
+    
+    // Focusable fields for each cell
+    enum FieldFocus: Hashable {
+        case field(row: Int, col: Int)
     }
 
 }
